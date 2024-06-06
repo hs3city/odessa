@@ -14,7 +14,11 @@
 #define PANEL_RES_Y 64  // Number of pixels tall of each INDIVIDUAL panel module.
 #define PANEL_CHAIN 1   // Total number of panels chained one to another
 
+#ifdef ARDUINO_MH_ET_LIVE_ESP32MINIKIT
+#define E_PIN 18
+#else
 #define E_PIN 32
+#endif
 
 // MatrixPanel_I2S_DMA dma_display;
 MatrixPanel_I2S_DMA *dma_display = nullptr;
@@ -32,33 +36,16 @@ std::vector<std::tuple<std::string, std::string, std::string>> transport_times;
 EspMQTTClient client(
     ssid,
     password,
-    BROKER,           // MQTT Broker server ip
-    "",               // Can be omitted if not needed
-    "",               // Can be omitted if not needed
-    "RGBMatrixClient" // Client name that uniquely identify your device
+    MQTT_BROKER,
+    MQTT_USER,
+    MQTT_PASSWORD,
+    "Odessa",
+    MQTT_BROKER_PORT
 );
 
 DynamicJsonDocument doc(MAX_PAYLOAD);
 
-uint16_t colorWheel(uint8_t pos)
-{
-  if (pos < 85)
-  {
-    return dma_display->color565(pos * 3, 255 - pos * 3, 0);
-  }
-  else if (pos < 170)
-  {
-    pos -= 85;
-    return dma_display->color565(255 - pos * 3, 0, pos * 3);
-  }
-  else
-  {
-    pos -= 170;
-    return dma_display->color565(0, pos * 3, 255 - pos * 3);
-  }
-}
-
-void drawText(int colorWheelOffset)
+void drawText()
 {
   dma_display->setTextSize(1);     // size 1 == 8 pixels high
   dma_display->setTextWrap(false); // Don't wrap at end of line - will do ourselves
@@ -98,11 +85,10 @@ void drawText(int colorWheelOffset)
 
 void onConnectionEstablished()
 {
-
   Serial.println("Connection established");
 
   client.subscribe(topic, [](const String &payload)
-                   {
+  {
     Serial.println(payload);
 
     deserializeJson(doc, payload);
@@ -123,7 +109,8 @@ void onConnectionEstablished()
       Serial.print("Time: ");
       Serial.println(time.c_str());
       dma_display->clearScreen();
-    } });
+    }
+  });
 }
 
 void setup()
@@ -167,14 +154,12 @@ void setup()
   dma_display->fillScreen(dma_display->color444(0, 0, 0));
 }
 
-uint8_t wheelval = 0;
 void loop()
 {
   client.loop();
 
   // animate by going through the colour wheel for the first two lines
-  drawText(wheelval);
-  wheelval += 1;
+  drawText();
 
   delay(20);
 }
