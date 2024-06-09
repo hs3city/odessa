@@ -57,6 +57,13 @@ AsyncWebServer server(80);
 
 unsigned long ota_progress_millis = 0;
 
+unsigned long mqtt_reconnection_progress_millis = 0;
+
+unsigned long last_gratuitious_message_send_time = 0;
+
+unsigned long one_minute = 60 * 1000;
+unsigned long five_seconds = 5 * 1000;
+
 const char* homeassistant_discovery_topic_prefix = "homeassistant/switch";
 
 void onOTAStart() { Serial.println("OTA update started!"); }
@@ -78,7 +85,7 @@ void onOTAEnd(bool success) {
 }
 
 void drawText() {
-  if (powerSwitch == PowerSwitch::on) {
+  if (PowerSwitch::on == powerSwitch) {
     dma_display->setTextSize(1); // size 1 == 8 pixels high
     dma_display->setTextWrap(
         false); // Don't wrap at end of line - will do ourselves
@@ -128,10 +135,19 @@ void drawText() {
   }
 }
 
+void sendDisplayState() {
+  Serial.println("Sending display state message");
+  if (PowerSwitch::on == powerSwitch)
+  {
+    client.publish(switchStateTopic, on_state);
+  } else {
+    client.publish(switchStateTopic, off_state);
+  }
+}
+
 void turnDisplayOff() {
   Serial.println("Turn display off\n");
   powerSwitch = PowerSwitch::off;
-  client.publish(switchStateTopic, off_state);
   dma_display->clearScreen();
   dma_display->flipDMABuffer();
 }
@@ -139,7 +155,6 @@ void turnDisplayOff() {
 void turnDisplayOn() {
   Serial.println("Turn display on\n");
   powerSwitch = PowerSwitch::on;
-  client.publish(switchStateTopic, on_state);
   drawText();
 }
 
@@ -169,9 +184,11 @@ void handleSwitchStateUpdate(byte *payload, unsigned int length) {
   Serial.println("Handling switch update");
   if (strncmp(on_state, (const char *)payload, length) == 0) {
     turnDisplayOn();
+    sendDisplayState();
   }
   if (strncmp(off_state, (const char *)payload, length) == 0) {
     turnDisplayOff();
+    sendDisplayState();
   }
 }
 
@@ -179,6 +196,7 @@ void sendHassDiscoveryMessage() {
   char homeassistant_discovery_topic[256];
   char serialized_json[MAX_PAYLOAD];
 
+  Serial.println("Sending Discovery message");
   snprintf(homeassistant_discovery_topic, 256, "%s/%s/config", homeassistant_discovery_topic_prefix, client_id);
   doc.clear();
 
@@ -194,6 +212,11 @@ void sendHassDiscoveryMessage() {
   client.publish(homeassistant_discovery_topic, serialized_json);
 }
 
+void sendGratuitiousMessages() {
+  sendHassDiscoveryMessage();
+  sendDisplayState();
+}
+
 void onConnectionEstablished() {
   Serial.println("Connection established");
 
@@ -202,7 +225,7 @@ void onConnectionEstablished() {
   client.setCallback(
       [](const char *messageTopic, byte *payload, unsigned int length) {
         Serial.printf("Got a message in topic %s\n", messageTopic);
-        Serial.printf("Payload:\n%s\n", payload);
+        Serial.printf("Payload:\n%.*s\n", length, payload);
         if (strcmp(messageTopic, feedTopic) == 0) {
           handleFeedUpdate(payload, length);
         }
@@ -211,7 +234,7 @@ void onConnectionEstablished() {
         }
       });
 
-  sendHassDiscoveryMessage();
+  sendGratuitiousMessages();
 }
 
 void setupSerial() { Serial.begin(115200); }
@@ -236,10 +259,12 @@ void setupDisplay() {
 
   dma_display->fillRect(0, 0, dma_display->width(), dma_display->height(),
                         dma_display->color444(0, 15, 0));
+  dma_display->flipDMABuffer();
   delay(500);
 
   dma_display->drawRect(0, 0, dma_display->width(), dma_display->height(),
                         dma_display->color444(15, 15, 0));
+  dma_display->flipDMABuffer();
   delay(500);
 
   dma_display->drawLine(0, 0, dma_display->width() - 1,
@@ -248,9 +273,11 @@ void setupDisplay() {
   dma_display->drawLine(dma_display->width() - 1, 0, 0,
                         dma_display->height() - 1,
                         dma_display->color444(15, 0, 0));
+  dma_display->flipDMABuffer();
   delay(500);
 
   dma_display->fillScreen(dma_display->color444(0, 0, 0));
+  dma_display->flipDMABuffer();
 }
 
 void setupWifi() {
@@ -270,7 +297,7 @@ void setupMqtt() {
 
 void setupOta() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Hi! This is ElegantOTA AsyncDemo.");
+    request->send(200, "text/plain", "Go away! Nothing to see here!");
   });
 
   ElegantOTA.begin(&server);
@@ -296,18 +323,30 @@ void setup() {
   turnDisplayOn();
 }
 
+bool timerIsClean() {return mqtt_reconnection_progress_millis == 0;}
+bool timerIsTimedOut() {return (mqtt_reconnection_progress_millis > 0 && millis() - mqtt_reconnection_progress_millis > five_seconds);}
+
 void reconnectMqtt() {
-  while (!client.connected()) {
+  if (timerIsClean() || timerIsTimedOut())
+  {
     Serial.println("Connecting to MQTT broker using supplied credentials");
     bool connected = client.connect(client_id, MQTT_USER, MQTT_PASSWORD);
 
     if (connected) {
+      mqtt_reconnection_progress_millis = 0;
       onConnectionEstablished();
     } else {
       Serial.printf("MQTT connection failed, rc=%d, retry in 5 seconds\n",
                     client.state());
-      delay(5000);
+      mqtt_reconnection_progress_millis = millis();
     }
+  }
+}
+
+void mqttLoop() {
+  if (millis() - last_gratuitious_message_send_time > one_minute) {
+    sendGratuitiousMessages();
+    last_gratuitious_message_send_time = millis();
   }
 }
 
@@ -318,6 +357,8 @@ void loop() {
 
   if (!client.connected()) {
     reconnectMqtt();
+  } else {
+    mqttLoop();
   }
 
   client.loop();
