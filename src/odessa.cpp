@@ -204,12 +204,14 @@ void sendHassDiscoveryMessage() {
   doc["device_class"] = "switch";
   doc["state_topic"] = switchStateTopic;
   doc["command_topic"] = switchSetTopic;
+  doc["availability_topic"] = availabilityTopic;
   doc["device"]["name"] = "Tramwajomat";
   doc["unique_id"] = client_id;
 
   serializeJson(doc, serialized_json);
 
-  client.publish(homeassistant_discovery_topic, serialized_json);
+  client.publish(homeassistant_discovery_topic, (const uint8_t*)serialized_json, strlen(serialized_json), true);
+  client.publish(availabilityTopic, "online");
 }
 
 void sendGratuitiousMessages() {

@@ -7,4 +7,5 @@ const char *MQTT_PASSWORD = "password";
 const char *feedTopic = "feed/public_transport";
 const char *switchSetTopic = "area/room/odessa/switch/set";
 const char *switchStateTopic = "homeassistant/switch/odessa/state";
+const char *availabilityTopic = "homeassistant/switch/odessa/available";
 const char *client_id = "odessa";
