@@ -55,6 +55,8 @@ DynamicJsonDocument doc(MAX_PAYLOAD);
 
 AsyncWebServer server(80);
 
+Timezone tz;
+
 unsigned long ota_progress_millis = 0;
 
 unsigned long mqtt_reconnection_progress_millis = 0;
@@ -96,18 +98,15 @@ void drawText() {
       dma_display->setCursor(0, 1);
     }
 
-    Timezone tz;
-    tz.setLocation("Europe/Warsaw");
-
     dma_display->clearScreen();
 
     dma_display->setTextColor(myWHITE);
 
     dma_display->setCursor(0, 8);
-    dma_display->printf("%04d-%02d-%02d", tz.year(), tz.month(), tz.day());
+    dma_display->println(tz.dateTime("y-M-d"));
 
     dma_display->setCursor(86, 8);
-    dma_display->printf("%02d:%02d:%02d", tz.hour(), tz.minute(), tz.second());
+    dma_display->println(tz.dateTime("H-i-s"));
 
     uint8_t w = 1;
     char buffer[100];
@@ -205,7 +204,6 @@ void sendHassDiscoveryMessage() {
   doc["state_topic"] = switchStateTopic;
   doc["command_topic"] = switchSetTopic;
   doc["availability_topic"] = availabilityTopic;
-  doc["device"]["name"] = "Tramwajomat";
   doc["unique_id"] = client_id;
 
   serializeJson(doc, serialized_json);
@@ -293,8 +291,6 @@ void setupWifi() {
 void setupMqtt() {
   client.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
   client.setBufferSize(MAX_PAYLOAD);
-
-  waitForSync();
 }
 
 void setupOta() {
@@ -317,6 +313,9 @@ void setup() {
   setupWifi();
   setupMqtt();
   setupOta();
+
+  tz.setLocation("Europe/Warsaw");
+  waitForSync();
 
   // Setup placeholders
   transport_times.emplace_back(std::make_tuple("5", "żółty", "2"));
@@ -350,6 +349,8 @@ void mqttLoop() {
     sendGratuitiousMessages();
     last_gratuitious_message_send_time = millis();
   }
+
+  client.loop();
 }
 
 void loop() {
@@ -362,8 +363,6 @@ void loop() {
   } else {
     mqttLoop();
   }
-
-  client.loop();
 
   drawText();
 
