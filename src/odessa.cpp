@@ -106,7 +106,7 @@ void drawText() {
     dma_display->println(tz.dateTime("y-M-d"));
 
     dma_display->setCursor(86, 8);
-    dma_display->println(tz.dateTime("H-i-s"));
+    dma_display->println(tz.dateTime("H:i:s"));
 
     uint8_t w = 1;
     char buffer[100];
