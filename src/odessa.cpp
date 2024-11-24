@@ -21,26 +21,48 @@
 // #define E_PIN 32
 // #endif
 
-#define DMD_PIN_nOE  15   // Pin nOE (enable)
-#define DMD_PIN_SCLK 14   // Pin SCLK (serial clock)
-#define DMD_PIN_SDIN 13   // Pin SDIN (serial data input)
-#define DMD_PIN_LAT  12   // Pin LAT (latch)
-#define DMD_PIN_A    6    // Pin A (row select)
-#define DMD_PIN_B    7    // Pin B (row select)
-#define DMD_PIN_C    8    // Pin C (row select)
-#define DMD_PIN_D    9    // Pin D (row select)
-#define DMD_PIN_E    10   // Pin E (row select)
-#define DMD_PIN_F    11   // Pin F (row select)
-uint8_t mux_list[] = { DMD_PIN_A, DMD_PIN_B, DMD_PIN_C, DMD_PIN_D, DMD_PIN_E };
+// #define DMD_PIN_nOE  15   // Pin nOE (enable)
+// #define DMD_PIN_SCLK 14   // Pin SCLK (serial clock)
+// #define DMD_PIN_SDIN 13   // Pin SDIN (serial data input)
+// #define DMD_PIN_LAT  12   // Pin LAT (latch)
+// #define DMD_PIN_A    6    // Pin A (row select)
+// #define DMD_PIN_B    7    // Pin B (row select)
+// #define DMD_PIN_C    8    // Pin C (row select)
+// #define DMD_PIN_D    9    // Pin D (row select)
+// #define DMD_PIN_E    10   // Pin E (row select)
+// #define DMD_PIN_F    11   // Pin F (row select)
+// uint8_t mux_list[] = { DMD_PIN_A, DMD_PIN_B, DMD_PIN_C, DMD_PIN_D, DMD_PIN_E };
+
+#define DMD_PIN_A 6
+#define DMD_PIN_B 7
+#define DMD_PIN_C 8
+#define DMD_PIN_D 9
+#define DMD_PIN_E 10
+
+// pin OE must be one of PB0 PB1 PA6 PA7
+#define DMD_PIN_nOE 15
+#define DMD_PIN_SCLK 12
+
+#define DMD_PIN_CLK 11
+#define DMD_PIN_R0 0
+#define DMD_PIN_G0 1
+#define DMD_PIN_B0 2
+#define DMD_PIN_R1 3
+#define DMD_PIN_G1 4
+#define DMD_PIN_B1 5
+uint8_t mux_list[] = { DMD_PIN_A , DMD_PIN_B , DMD_PIN_C , DMD_PIN_D , DMD_PIN_E };
+uint8_t custom_rgbpins[] = { 11, 0, 1, 2, 3, 4, 5 }; // CLK, R0, G0, B0, R1, G1, B1
+
+#define ENABLE_DUAL_BUFFER true
 
 // Parametry ekranu
 #define DISPLAYS_ACROSS 2    // 2 displays across
 #define DISPLAYS_DOWN  1     // 1 display down
 
 // custom RGB pins
-uint8_t custom_rgbpins[] = { 3, 4, 5 };
+//uint8_t custom_rgbpins[] = { 3, 4, 5 };
 
-DMD_RGB <RGB64x64plainS32, COLOR_4BITS> dmd(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
+DMD_RGB <RGB64x64plainS32, COLOR_4BITS> dmd(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN, ENABLE_DUAL_BUFFER);
 
 //DMD *display = nullptr;  // This will be a pointer to your DMD display
 
