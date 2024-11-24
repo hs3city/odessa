@@ -220,12 +220,12 @@ void onConnectionEstablished() {
   client.subscribe(feedTopic);
   client.subscribe(switchSetTopic);
   client.setCallback(
-      [](const char *messageTopic, byte *payload, unsigned int length) {
+      [](char* messageTopic, uint8_t* payload, unsigned int length) {
         if (strcmp(messageTopic, feedTopic) == 0) {
-          handleFeedUpdate(payload, length);
+            handleFeedUpdate(payload, length);
         }
         if (strcmp(messageTopic, switchSetTopic) == 0) {
-          handleSwitchStateUpdate(payload, length);
+            handleSwitchStateUpdate(payload, length);
         }
       });
 
@@ -247,6 +247,23 @@ void setupMqtt() {
   client.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
   client.setBufferSize(MAX_PAYLOAD);
 }
+
+void onOTAStart() {
+    Serial.println("OTA Update Started");
+}
+
+void onOTAProgress(unsigned int progress, unsigned int total) {
+    Serial.printf("OTA Progress: %u%%\n", (progress * 100) / total);
+}
+
+void onOTAEnd(bool success) {
+    if (success) {
+        Serial.println("OTA Update Completed Successfully");
+    } else {
+        Serial.println("OTA Update Failed");
+    }
+}
+
 
 void setupOta() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
