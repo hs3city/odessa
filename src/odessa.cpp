@@ -38,11 +38,9 @@
 #define DMD_PIN_C 8
 #define DMD_PIN_D 9
 #define DMD_PIN_E 10
-
 // pin OE must be one of PB0 PB1 PA6 PA7
 #define DMD_PIN_nOE 15
 #define DMD_PIN_SCLK 12
-
 #define DMD_PIN_CLK 11
 #define DMD_PIN_R0 0
 #define DMD_PIN_G0 1
@@ -111,7 +109,6 @@ void setupDisplay() {
   // Initialize the display object from the DMD library
   display = new DMD_RGB<1, 64, 64, 1, 1, COLOR_4BITS>(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
 
-
   // Set up your panel's GPIO pins, as required by your configuration
   display->init();
   
@@ -119,7 +116,6 @@ void setupDisplay() {
   display->clearScreen(0);
   display->setBrightness(128);  // Set to a reasonable value for your display
 }
-
 void drawText() {
   if (PowerSwitch::on == powerSwitch) {
     display->clearScreen(0);  // Clear the display
