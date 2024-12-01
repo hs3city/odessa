@@ -62,7 +62,7 @@ uint8_t custom_rgbpins[] = { 11, 0, 1, 2, 3, 4, 5 }; // CLK, R0, G0, B0, R1, G1,
 
 DMD_RGB <RGB64x32plainS16, COLOR_4BITS> dmd(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
 
-DMD *display = nullptr;  // This will be a pointer to your DMD display
+//DMD *display = nullptr;  // This will be a pointer to your DMD display
 
 uint16_t myBLACK = 0x0000;
 uint16_t myWHITE = 0xFFFF;
@@ -110,51 +110,51 @@ void setupDisplay() {
   //display = new DMD_RGB<1, 64, 64, 1, 1, COLOR_4BITS>(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
 
   // Set up your panel's GPIO pins, as required by your configuration
-  display->init();
+  dmd.init();
   
   // Set up any other initial parameters, such as brightness, clear screen, etc.
-  display->clearScreen(0);
-  display->setBrightness(128);  // Set to a reasonable value for your display
+  dmd.clearScreen(0);
+  dmd.setBrightness(128);  // Set to a reasonable value for your dmd
 }
 void drawText() {
   if (PowerSwitch::on == powerSwitch) {
-    display->clearScreen(0);  // Clear the display
+    dmd.clearScreen(0);  // Clear the display
 
-    display->setTextSize(1);  // Set text size
-    display->setTextColor(myWHITE);  // Set text color
+    dmd.setTextSize(1);  // Set text size
+    dmd.setTextColor(myWHITE);  // Set text color
 
     if (hack_font) {
-      display->setCursor(1, 9);  // Adjust for font size and positioning
+      dmd.setCursor(1, 9);  // Adjust for font size and positioning
     } else {
-      display->setCursor(0, 1);
+      dmd.setCursor(0, 1);
     }
 
-    display->println(tz.dateTime("y-M-d"));  // Print current date
-    display->setCursor(86, 8);
-    display->println(tz.dateTime("H:i:s"));  // Print current time
+    dmd.println(tz.dateTime("y-M-d"));  // Print current date
+    dmd.setCursor(86, 8);
+    dmd.println(tz.dateTime("H:i:s"));  // Print current time
 
     uint8_t w = 1;
     char buffer[100];
 
     for (auto &element : transport_times) {
-      display->setTextColor(myGREEN);  // Set color for number
-      display->setCursor(0, 9 * w + 8);
+      dmd.setTextColor(myGREEN);  // Set color for number
+      dmd.setCursor(0, 9 * w + 8);
       snprintf(buffer, 100, "%2d", atoi(std::get<0>(element).c_str()));
-      display->println(buffer);
+      dmd.println(buffer);
 
-      display->setTextColor(myBLUE);  // Set color for direction
-      display->setCursor(12, 9 * w + 8);
+      dmd.setTextColor(myBLUE);  // Set color for direction
+      dmd.setCursor(12, 9 * w + 8);
       snprintf(buffer, 100, "%-20s", std::get<1>(element).substr(0, 20).c_str());
-      display->println(buffer);
+      dmd.println(buffer);
 
-      display->setTextColor(myRED);  // Set color for time
-      display->setCursor(116, 9 * w + 8);
+      dmd.setTextColor(myRED);  // Set color for time
+      dmd.setCursor(116, 9 * w + 8);
       snprintf(buffer, 100, "%2d", atoi(std::get<2>(element).c_str()));
-      display->println(buffer);
+      dmd.println(buffer);
       w++;
     }
 
-    // display->updateScreen();  // Update the display after drawing text
+    // display.updateScreen();  // Update the display after drawing text
   }
 }
 
@@ -170,8 +170,8 @@ void sendDisplayState() {
 void turnDisplayOff() {
   Serial.println("Turn display off\n");
   powerSwitch = PowerSwitch::off;
-  display->clearScreen(0);  // Clear the display to show it is off
-  //display->updateScreen(); -> because of no method updateScreen available
+  dmd.clearScreen(0);  // Clear the display to show it is off
+  //display.updateScreen(); . because of no method updateScreen available
 }
 
 void turnDisplayOn() {
