@@ -51,18 +51,18 @@
 uint8_t mux_list[] = { DMD_PIN_A , DMD_PIN_B , DMD_PIN_C , DMD_PIN_D , DMD_PIN_E };
 uint8_t custom_rgbpins[] = { 11, 0, 1, 2, 3, 4, 5 }; // CLK, R0, G0, B0, R1, G1, B1
 
-#define ENABLE_DUAL_BUFFER true
+//#define ENABLE_DUAL_BUFFER true
 
 // Parametry ekranu
 #define DISPLAYS_ACROSS 2    // 2 displays across
-#define DISPLAYS_DOWN  1     // 1 display down
+#define DISPLAYS_DOWN  2     // 1 display down
 
 // custom RGB pins
 //uint8_t custom_rgbpins[] = { 3, 4, 5 };
 
-DMD_RGB <RGB64x64plainS32, COLOR_4BITS> dmd(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN, ENABLE_DUAL_BUFFER);
+DMD_RGB <RGB64x32plainS16, COLOR_4BITS> dmd(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
 
-//DMD *display = nullptr;  // This will be a pointer to your DMD display
+DMD *display = nullptr;  // This will be a pointer to your DMD display
 
 uint16_t myBLACK = 0x0000;
 uint16_t myWHITE = 0xFFFF;
@@ -99,7 +99,7 @@ unsigned long five_seconds = 5 * 1000;
 const char* homeassistant_discovery_topic_prefix = "homeassistant/switch";
 
 // Display initialization
-DMD *display;
+//DMD *display;
 
 void setupDisplay() {
   // int width = PANEL_RES_X;
@@ -107,7 +107,7 @@ void setupDisplay() {
   // int chain = PANEL_CHAIN;
 
   // Initialize the display object from the DMD library
-  display = new DMD_RGB<1, 64, 64, 1, 1, COLOR_4BITS>(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
+  //display = new DMD_RGB<1, 64, 64, 1, 1, COLOR_4BITS>(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
 
   // Set up your panel's GPIO pins, as required by your configuration
   display->init();
