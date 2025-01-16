@@ -1,41 +1,74 @@
 #include <Arduino.h>
-
 #include <LittleFS.h>
-
 #include <PubSubClient.h>
 #include <WifiManager.h>
-
-#include <ArduinoJson.h> // https://arduinojson.org/
-#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h> // https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-DMA
+#include <ArduinoJson.h>
+#include <DMD_RGB.h>
 #include <ezTime.h>
-
 #include <ESPAsyncWebServer.h>
 #include <ElegantOTA.h>
-
 #include "hack-regular-4.h"
-
 #include "settings.h"
 
 #define MAX_PAYLOAD 1024
+// #define PANEL_RES_X 128  // Pixels wide for each panel module
+// #define PANEL_RES_Y 64   // Pixels tall for each panel module
+// #define PANEL_CHAIN 1    // Number of panels chained
 
-#define PANEL_RES_X                                                            \
-  128                  // Number of pixels wide of each INDIVIDUAL panel module.
-#define PANEL_RES_Y 64 // Number of pixels tall of each INDIVIDUAL panel module.
-#define PANEL_CHAIN 1  // Total number of panels chained one to another
+// #ifdef ARDUINO_MH_ET_LIVE_ESP32MINIKIT
+// #define E_PIN 18
+// #else
+// #define E_PIN 32
+// #endif
 
-#ifdef ARDUINO_MH_ET_LIVE_ESP32MINIKIT
-#define E_PIN 18
-#else
-#define E_PIN 32
-#endif
+// #define DMD_PIN_nOE  15   // Pin nOE (enable)
+// #define DMD_PIN_SCLK 14   // Pin SCLK (serial clock)
+// #define DMD_PIN_SDIN 13   // Pin SDIN (serial data input)
+// #define DMD_PIN_LAT  12   // Pin LAT (latch)
+// #define DMD_PIN_A    6    // Pin A (row select)
+// #define DMD_PIN_B    7    // Pin B (row select)
+// #define DMD_PIN_C    8    // Pin C (row select)
+// #define DMD_PIN_D    9    // Pin D (row select)
+// #define DMD_PIN_E    10   // Pin E (row select)
+// #define DMD_PIN_F    11   // Pin F (row select)
+// uint8_t mux_list[] = { DMD_PIN_A, DMD_PIN_B, DMD_PIN_C, DMD_PIN_D, DMD_PIN_E };
 
-MatrixPanel_I2S_DMA *dma_display = nullptr;
+#define DMD_PIN_A 6
+#define DMD_PIN_B 7
+#define DMD_PIN_C 8
+#define DMD_PIN_D 9
+#define DMD_PIN_E 10
+// pin OE must be one of PB0 PB1 PA6 PA7
+#define DMD_PIN_nOE 15
+#define DMD_PIN_SCLK 12
+#define DMD_PIN_CLK 11
+#define DMD_PIN_R0 0
+#define DMD_PIN_G0 1
+#define DMD_PIN_B0 2
+#define DMD_PIN_R1 3
+#define DMD_PIN_G1 4
+#define DMD_PIN_B1 5
+uint8_t mux_list[] = { DMD_PIN_A , DMD_PIN_B , DMD_PIN_C , DMD_PIN_D , DMD_PIN_E };
+uint8_t custom_rgbpins[] = { 11, 0, 1, 2, 3, 4, 5 }; // CLK, R0, G0, B0, R1, G1, B1
 
-uint16_t myBLACK = dma_display->color565(0, 0, 0);
-uint16_t myWHITE = dma_display->color565(255, 255, 255);
-uint16_t myRED = dma_display->color565(255, 0, 0);
-uint16_t myGREEN = dma_display->color565(0, 255, 0);
-uint16_t myBLUE = dma_display->color565(0, 0, 255);
+//#define ENABLE_DUAL_BUFFER true
+
+// Parametry ekranu
+#define DISPLAYS_ACROSS 2    // 2 displays across
+#define DISPLAYS_DOWN  2     // 1 display down
+
+// custom RGB pins
+//uint8_t custom_rgbpins[] = { 3, 4, 5 };
+
+DMD_RGB <RGB64x32plainS16, COLOR_4BITS> dmd(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
+
+//DMD *display = nullptr;  // This will be a pointer to your DMD display
+
+uint16_t myBLACK = 0x0000;
+uint16_t myWHITE = 0xFFFF;
+uint16_t myRED = 0xF800;
+uint16_t myGREEN = 0x07E0;
+uint16_t myBLUE = 0x001F;
 
 const bool hack_font = true;
 
@@ -58,86 +91,76 @@ AsyncWebServer server(80);
 Timezone tz;
 
 unsigned long ota_progress_millis = 0;
-
 unsigned long mqtt_reconnection_progress_millis = 0;
-
 unsigned long last_gratuitious_message_send_time = 0;
-
 unsigned long one_minute = 60 * 1000;
 unsigned long five_seconds = 5 * 1000;
 
 const char* homeassistant_discovery_topic_prefix = "homeassistant/switch";
 
-void onOTAStart() { Serial.println("OTA update started!"); }
+// Display initialization
+//DMD *display;
 
-void onOTAProgress(size_t current, size_t final) {
-  if (millis() - ota_progress_millis > 1000) {
-    ota_progress_millis = millis();
-    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current,
-                  final);
-  }
+void setupDisplay() {
+  // int width = PANEL_RES_X;
+  // int height = PANEL_RES_Y;
+  // int chain = PANEL_CHAIN;
+
+  // Initialize the display object from the DMD library
+  //display = new DMD_RGB<1, 64, 64, 1, 1, COLOR_4BITS>(mux_list, DMD_PIN_nOE, DMD_PIN_SCLK, custom_rgbpins, DISPLAYS_ACROSS, DISPLAYS_DOWN);
+
+  // Set up your panel's GPIO pins, as required by your configuration
+  dmd.init();
+  
+  // Set up any other initial parameters, such as brightness, clear screen, etc.
+  dmd.clearScreen(0);
+  dmd.setBrightness(128);  // Set to a reasonable value for your dmd
 }
-
-void onOTAEnd(bool success) {
-  if (success) {
-    Serial.println("OTA update finished successfully!");
-  } else {
-    Serial.println("There was an error during OTA update!");
-  }
-}
-
 void drawText() {
   if (PowerSwitch::on == powerSwitch) {
-    dma_display->setTextSize(1); // size 1 == 8 pixels high
-    dma_display->setTextWrap(
-        false); // Don't wrap at end of line - will do ourselves
+    dmd.clearScreen(0);  // Clear the display
+
+    dmd.setTextSize(1);  // Set text size
+    dmd.setTextColor(myWHITE);  // Set text color
 
     if (hack_font) {
-      dma_display->setCursor(1, 9);
+      dmd.setCursor(1, 9);  // Adjust for font size and positioning
     } else {
-      dma_display->setCursor(0, 1);
+      dmd.setCursor(0, 1);
     }
 
-    dma_display->clearScreen();
-
-    dma_display->setTextColor(myWHITE);
-
-    dma_display->setCursor(0, 8);
-    dma_display->println(tz.dateTime("y-M-d"));
-
-    dma_display->setCursor(86, 8);
-    dma_display->println(tz.dateTime("H:i:s"));
+    dmd.println(tz.dateTime("y-M-d"));  // Print current date
+    dmd.setCursor(86, 8);
+    dmd.println(tz.dateTime("H:i:s"));  // Print current time
 
     uint8_t w = 1;
     char buffer[100];
 
     for (auto &element : transport_times) {
-      dma_display->setTextColor(myGREEN);
-
-      dma_display->setCursor(0, 9 * w + 8);
+      dmd.setTextColor(myGREEN);  // Set color for number
+      dmd.setCursor(0, 9 * w + 8);
       snprintf(buffer, 100, "%2d", atoi(std::get<0>(element).c_str()));
-      dma_display->println(buffer);
+      dmd.println(buffer);
 
-      dma_display->setTextColor(myBLUE);
-      dma_display->setCursor(12, 9 * w + 8);
-      snprintf(buffer, 100, "%-20s",
-               std::get<1>(element).substr(0, 20).c_str());
-      dma_display->println(buffer);
+      dmd.setTextColor(myBLUE);  // Set color for direction
+      dmd.setCursor(12, 9 * w + 8);
+      snprintf(buffer, 100, "%-20s", std::get<1>(element).substr(0, 20).c_str());
+      dmd.println(buffer);
 
-      dma_display->setTextColor(myRED);
-      dma_display->setCursor(116, 9 * w + 8);
+      dmd.setTextColor(myRED);  // Set color for time
+      dmd.setCursor(116, 9 * w + 8);
       snprintf(buffer, 100, "%2d", atoi(std::get<2>(element).c_str()));
-      dma_display->println(buffer);
+      dmd.println(buffer);
       w++;
     }
-    dma_display->flipDMABuffer();
+
+    // display.updateScreen();  // Update the display after drawing text
   }
 }
 
 void sendDisplayState() {
   Serial.println("Sending display state message");
-  if (PowerSwitch::on == powerSwitch)
-  {
+  if (PowerSwitch::on == powerSwitch) {
     client.publish(switchStateTopic, on_state);
   } else {
     client.publish(switchStateTopic, off_state);
@@ -147,14 +170,14 @@ void sendDisplayState() {
 void turnDisplayOff() {
   Serial.println("Turn display off\n");
   powerSwitch = PowerSwitch::off;
-  dma_display->clearScreen();
-  dma_display->flipDMABuffer();
+  dmd.clearScreen(0);  // Clear the display to show it is off
+  //display.updateScreen(); . because of no method updateScreen available
 }
 
 void turnDisplayOn() {
   Serial.println("Turn display on\n");
   powerSwitch = PowerSwitch::on;
-  drawText();
+  drawText();  // Redraw the screen with the necessary content
 }
 
 void handleFeedUpdate(byte *payload, unsigned int length) {
@@ -162,7 +185,6 @@ void handleFeedUpdate(byte *payload, unsigned int length) {
   deserializeJson(doc, payload, length);
 
   JsonArray ztm = doc["ztm"];
-
   transport_times.clear();
 
   for (JsonObject transport : ztm) {
@@ -170,12 +192,6 @@ void handleFeedUpdate(byte *payload, unsigned int length) {
     std::string direction = transport["d"];
     std::string time = transport["t"];
     transport_times.emplace_back(make_tuple(number, direction, time));
-    Serial.print("Number: ");
-    Serial.println(number.c_str());
-    Serial.print("Direction: ");
-    Serial.println(direction.c_str());
-    Serial.print("Time: ");
-    Serial.println(time.c_str());
   }
 }
 
@@ -219,18 +235,15 @@ void sendGratuitiousMessages() {
 
 void onConnectionEstablished() {
   Serial.println("Connection established");
-
   client.subscribe(feedTopic);
   client.subscribe(switchSetTopic);
   client.setCallback(
-      [](const char *messageTopic, byte *payload, unsigned int length) {
-        Serial.printf("Got a message in topic %s\n", messageTopic);
-        Serial.printf("Payload:\n%.*s\n", length, payload);
+      [](char* messageTopic, uint8_t* payload, unsigned int length) {
         if (strcmp(messageTopic, feedTopic) == 0) {
-          handleFeedUpdate(payload, length);
+            handleFeedUpdate(payload, length);
         }
         if (strcmp(messageTopic, switchSetTopic) == 0) {
-          handleSwitchStateUpdate(payload, length);
+            handleSwitchStateUpdate(payload, length);
         }
       });
 
@@ -241,48 +254,8 @@ void setupSerial() { Serial.begin(115200); }
 
 void setupFilesystem() { LittleFS.begin(); }
 
-void setupDisplay() {
-  HUB75_I2S_CFG mxconfig(PANEL_RES_X, PANEL_RES_Y, PANEL_CHAIN);
-
-  mxconfig.gpio.e = E_PIN;
-  mxconfig.double_buff = true;
-
-  dma_display = new MatrixPanel_I2S_DMA(mxconfig);
-  dma_display->begin();
-  dma_display->utf8(true);
-  dma_display->setBrightness8(128); // 0-255
-  dma_display->clearScreen();
-
-  if (hack_font) {
-    dma_display->setFont(&Hack_Regular4pt8b);
-  }
-
-  dma_display->fillRect(0, 0, dma_display->width(), dma_display->height(),
-                        dma_display->color444(0, 15, 0));
-  dma_display->flipDMABuffer();
-  delay(500);
-
-  dma_display->drawRect(0, 0, dma_display->width(), dma_display->height(),
-                        dma_display->color444(15, 15, 0));
-  dma_display->flipDMABuffer();
-  delay(500);
-
-  dma_display->drawLine(0, 0, dma_display->width() - 1,
-                        dma_display->height() - 1,
-                        dma_display->color444(15, 0, 0));
-  dma_display->drawLine(dma_display->width() - 1, 0, 0,
-                        dma_display->height() - 1,
-                        dma_display->color444(15, 0, 0));
-  dma_display->flipDMABuffer();
-  delay(500);
-
-  dma_display->fillScreen(dma_display->color444(0, 0, 0));
-  dma_display->flipDMABuffer();
-}
-
 void setupWifi() {
   bool connected = WifiManager.connectToWifi();
-
   if (!connected) {
     WifiManager.startManagementServer("Tramwajomat");
   }
@@ -292,6 +265,23 @@ void setupMqtt() {
   client.setServer(MQTT_BROKER, MQTT_BROKER_PORT);
   client.setBufferSize(MAX_PAYLOAD);
 }
+
+void onOTAStart() {
+    Serial.println("OTA Update Started");
+}
+
+void onOTAProgress(unsigned int progress, unsigned int total) {
+    Serial.printf("OTA Progress: %u%%\n", (progress * 100) / total);
+}
+
+void onOTAEnd(bool success) {
+    if (success) {
+        Serial.println("OTA Update Completed Successfully");
+    } else {
+        Serial.println("OTA Update Failed");
+    }
+}
+
 
 void setupOta() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -317,7 +307,6 @@ void setup() {
   tz.setLocation("Europe/Warsaw");
   waitForSync();
 
-  // Setup placeholders
   transport_times.emplace_back(std::make_tuple("5", "żółty", "2"));
   transport_times.emplace_back(std::make_tuple("12", "Hackerspace", "12"));
 
@@ -328,8 +317,7 @@ bool timerIsClean() {return mqtt_reconnection_progress_millis == 0;}
 bool timerIsTimedOut() {return (mqtt_reconnection_progress_millis > 0 && millis() - mqtt_reconnection_progress_millis > five_seconds);}
 
 void reconnectMqtt() {
-  if (timerIsClean() || timerIsTimedOut())
-  {
+  if (timerIsClean() || timerIsTimedOut()) {
     Serial.println("Connecting to MQTT broker using supplied credentials");
     bool connected = client.connect(client_id, MQTT_USER, MQTT_PASSWORD);
 
@@ -337,8 +325,7 @@ void reconnectMqtt() {
       mqtt_reconnection_progress_millis = 0;
       onConnectionEstablished();
     } else {
-      Serial.printf("MQTT connection failed, rc=%d, retry in 5 seconds\n",
-                    client.state());
+      Serial.printf("MQTT connection failed, rc=%d, retry in 5 seconds\n", client.state());
       mqtt_reconnection_progress_millis = millis();
     }
   }
@@ -349,13 +336,11 @@ void mqttLoop() {
     sendGratuitiousMessages();
     last_gratuitious_message_send_time = millis();
   }
-
   client.loop();
 }
 
 void loop() {
   WifiManager.check();
-
   ElegantOTA.loop();
 
   if (!client.connected()) {
@@ -365,6 +350,5 @@ void loop() {
   }
 
   drawText();
-
   delay(50);
 }
